@@ -18,25 +18,37 @@ let n:Parser<string,string> = pstring "dog"
 let pword s = pstring s .>> spaces
 let parens p = between (pword "(") (pword ")") p
 
-let markdownListIndicator = pstring "- "
-let markdownList:Parser<string,unit> =
-  let restOfLine=manyCharsTill anyChar (skipNewline <|> eof)
-  markdownListIndicator .>> restOfLine
-let markdownNotList:Parser<string,unit> =
-  manyCharsTill anyChar (skipNewline <|> eof)
-
-let markdownSelect=many (markdownList <|> markdownNotList)
 type MarkdownType =
   | Markdown of string
   | MarkdownList of string
+  | MarkdownEmptyLine of unit
+
+
+let markdownListIndicator = pstring "- "
+let markdownList:Parser<MarkdownType,unit> =
+  let restOfLine=manyCharsTill anyChar (skipNewline <|> eof)
+  markdownListIndicator >>. restOfLine |>> MarkdownList
+
+let markdownNotList:Parser<MarkdownType,unit> =
+  many1CharsTill anyChar (skipNewline <|> eof) |>> Markdown
+  //many1CharsTillApply
+let markdownEmptyLine:Parser<MarkdownType,unit> =
+  skipNewline |>> MarkdownEmptyLine
 
 
 let pcodeType =
   choice [
-    markdownList |>> MarkdownList
-    markdownNotList |>> Markdown
+  markdownEmptyLine
+  markdownList
+  markdownNotList
   ]
+let manyContainedMarkdownLines  =
+  many pcodeType
 
 
-
+type NoteType=
+  | Note of MarkdownType list
+  | Question of MarkdownType list
+  | ToDo of MarkdownType list
+  | Work of MarkdownType list
 
